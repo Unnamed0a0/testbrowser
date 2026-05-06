@@ -178,22 +178,39 @@
             document.getElementById('disk').innerText = Math.round(est.quota / 1073741824) + " GB";
         });
     };
-
-    // 2. СЕТЬ (HTTPS-совместимый API)
+// 2. СЕТЬ (Использование ipify для чистого IP + Native Intl для локации)
     async function getNetworkData() {
-        try {
-            const res = await fetch('https://ipwho.is/?lang=ru');
-            const d = await res.json();
-            if (d.success) {
-                const ipEl = document.getElementById('ip');
-                ipEl.innerText = d.ip;
-                ipEl.classList.remove('warn');
-                document.getElementById('isp').innerText = d.connection.isp;
-                document.getElementById('location').innerText = `${d.city}, ${d.country}`;
-            }
-        } catch (e) { document.getElementById('ip').innerText = "Ошибка (HTTPS Limit)"; }
-    }
+        const ipEl = document.getElementById('ip');
+        const locEl = document.getElementById('location');
+        const ispEl = document.getElementById('isp');
 
+        try {
+            // Получаем только IP адрес через HTTPS (максимальная стабильность)
+            const res = await fetch('https://api.ipify.org?format=json');
+            const data = await res.json();
+            
+            if (data.ip) {
+                ipEl.innerText = data.ip;
+                ipEl.classList.remove('warn');
+            }
+
+            // Определяем город и страну через системный Intl (без запросов к API)
+            // Это берется из настроек Windows/macOS пользователя
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; 
+            const parts = tz.split('/');
+            const city = parts[1] ? parts[1].replace('_', ' ') : parts[0];
+            
+            locEl.innerText = `${city} (${tz})`;
+            
+            // Провайдер (через ipify API его нет бесплатно, пишем статус соединения)
+            const conn = navigator.connection || {};
+            ispEl.innerText = `Сеть: ${conn.effectiveType?.toUpperCase() || 'Ethernet/Wi-Fi'}`;
+
+        } catch (e) { 
+            console.error("Network Error:", e);
+            ipEl.innerText = "Ошибка (AdBlock?)"; 
+        }
+    }
     // 3. БАТАРЕЯ
     async function getBatteryData() {
         if (navigator.getBattery) {
@@ -209,46 +226,61 @@
             } catch (e) { document.getElementById('battery').innerText = "Запрещено"; }
         } else { document.getElementById('battery').innerText = "API не поддерживается"; }
     }
-
-    // 4. ГРАФИКА И CANVAS ID (С двойной попыткой отрисовки для Edge)
     async function getGraphicsData() {
         const gpuEl = document.getElementById('gpu');
         const canvasEl = document.getElementById('canvas-id');
 
         try {
-            const canvas = document.createElement('canvas');
-            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            // --- 1. ВИДЕОКАРТА (WebGL Canvas) ---
+            const canvasGPU = document.createElement('canvas');
+            const gl = canvasGPU.getContext('webgl') || canvasGPU.getContext('experimental-webgl');
             
-            // Получаем GPU
             if (gl) {
                 const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-                gpuEl.innerText = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : "Стандартный драйвер";
+                if (dbg) {
+                    const renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+                    gpuEl.innerText = renderer;
+                } else {
+                    gpuEl.innerText = gl.getParameter(gl.RENDERER) || "Стандартный драйвер";
+                }
                 gpuEl.classList.remove('warn');
-            } else { gpuEl.innerText = "WebGL заблокирован"; }
+            } else {
+                gpuEl.innerText = "WebGL заблокирован";
+            }
 
-            // Ждем, чтобы браузер не посчитал отрисовку атакой
-            await delay(100);
-
-            // Получаем Canvas ID
-            const ctx = canvas.getContext('2d');
-            canvas.width = 240; canvas.height = 60;
-            ctx.textBaseline = "top";
-            ctx.font = "16px 'Arial'";
-            ctx.fillStyle = "#f60"; ctx.fillRect(100,5,80,25);
-            ctx.fillStyle = "#069"; ctx.fillText("SystemAudit_Fingerprint_v1", 2, 20);
+            // --- 2. CANVAS ID (2D Canvas — создаем НОВЫЙ элемент) ---
+            const canvasID = document.createElement('canvas');
+            const ctx = canvasID.getContext('2d');
             
-            const b64 = canvas.toDataURL();
-            if (b64.length > 80) {
-                canvasEl.innerText = btoa(b64).substring(200, 235);
-                canvasEl.classList.remove('crit');
-            } else { canvasEl.innerText = "Скрыто браузером"; }
+            if (ctx) {
+                canvasID.width = 240; 
+                canvasID.height = 60;
+                
+                ctx.textBaseline = "top";
+                ctx.font = "16px 'Arial'";
+                ctx.fillStyle = "#f60"; 
+                ctx.fillRect(100, 5, 80, 25);
+                ctx.fillStyle = "#069"; 
+                ctx.fillText("SystemAudit_Fingerprint_v1", 2, 20);
+                
+                const b64 = canvasID.toDataURL();
+                if (b64 && b64.length > 80) {
+                    // Используем твой метод обрезки строки
+                    canvasEl.innerText = btoa(b64).substring(200, 235);
+                    canvasEl.classList.remove('crit');
+                } else {
+                    canvasEl.innerText = "Скрыто браузером";
+                }
+            } else {
+                canvasEl.innerText = "2D Context Error";
+            }
 
         } catch (e) {
-            gpuEl.innerText = "Ошибка WebGL";
-            canvasEl.innerText = "Отказано";
+            console.error("Graphics Error:", e);
+            if (gpuEl) gpuEl.innerText = "Ошибка доступа";
+            if (canvasEl) canvasEl.innerText = "Ошибка скрипта";
         }
     }
-
     // 5. ADBLOCK И ПРАВА
     async function getMiscData() {
         // Честная проверка AdBlock через загрузку Google Analytics
@@ -275,16 +307,15 @@
             document.getElementById('mics').innerText = devs.filter(d => d.kind === 'audioinput').length;
         }
     }
-
-    // ЗАПУСК ПО ЦЕПОЧКЕ С ПАУЗАМИ (Survival Launch)
     async function run() {
-        initStatic(); // Мгновенно
+        initStatic(); 
+
+        await getGraphicsData(); 
+        
         await delay(200); getBatteryData();
-        await delay(400); getGraphicsData(); // Графика через 0.6 сек
-        await delay(500); getNetworkData(); // Сеть через 1.1 сек
-        await delay(500); getMiscData();
+        await delay(300); getNetworkData();
+        await delay(300); getMiscData();
     }
-    
     run();
 
     // Живое обновление памяти
