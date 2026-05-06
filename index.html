@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate System Audit</title>
+    <style>
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background-color: #fff; color: #000;
+            display: flex; justify-content: center;
+            margin: 0; padding: 40px 20px;
+        }
+        .wrapper { max-width: 600px; width: 100%; }
+        header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
+        h1 { font-size: 1.4rem; font-weight: 800; margin: 0; text-transform: uppercase; }
+        .section-title { 
+            font-size: 0.75rem; font-weight: 800; text-transform: uppercase; 
+            color: #999; margin: 35px 0 10px 0; border-bottom: 1px solid #eee;
+        }
+        .row {
+            display: flex; justify-content: space-between; 
+            padding: 10px 0; border-bottom: 1px solid #fafafa; font-size: 0.9rem;
+        }
+        .label { color: #666; }
+        .value { font-weight: 600; text-align: right; max-width: 65%; word-break: break-all; }
+        .critical { color: #d32f2f; }
+        .loading { color: #ccc; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <header>
+        <h1>Сведения о системе</h1>
+        <div id="current-date" style="font-size: 0.8rem; color: #666; margin-top: 5px;"></div>
+    </header>
+
+    <div id="app">
+        <div class="section-title">Сеть и Идентификация</div>
+        <div class="row"><span class="label">Внешний IP</span><span id="ip" class="value loading">поиск...</span></div>
+        <div class="row"><span class="label">Провайдер</span><span id="isp" class="value">—</span></div>
+        <div class="row"><span class="label">Местоположение</span><span id="location" class="value">—</span></div>
+        <div class="row"><span class="label">Тип соединения</span><span id="conn-type" class="value">—</span></div>
+        <div class="row"><span class="label">Пинг (RTT)</span><span id="ping" class="value">—</span></div>
+        <div class="row"><span class="label">Canvas ID</span><span id="canvas-id" class="value critical">—</span></div>
+
+        <div class="section-title">Аппаратная часть</div>
+        <div class="row"><span class="label">Видеокарта</span><span id="gpu" class="value">—</span></div>
+        <div class="row"><span class="label">Процессор (ядра)</span><span id="cpu" class="value">—</span></div>
+        <div class="row"><span class="label">Оперативная память</span><span id="ram" class="value">—</span></div>
+        <div class="row"><span class="label">JS Heap Память</span><span id="heap" class="value">—</span></div>
+        <div class="row"><span class="label">Квота диска</span><span id="disk" class="value">—</span></div>
+        <div class="row"><span class="label">Батарея</span><span id="battery" class="value">—</span></div>
+        <div class="row"><span class="label">Статус зарядки</span><span id="charging" class="value">—</span></div>
+
+        <div class="section-title">Экран и Графика</div>
+        <div class="row"><span class="label">Разрешение</span><span id="screen" class="value">—</span></div>
+        <div class="row"><span class="label">Доступная область</span><span id="avail-screen" class="value">—</span></div>
+        <div class="row"><span class="label">Глубина цвета</span><span id="color-depth" class="value">—</span></div>
+        <div class="row"><span class="label">Pixel Ratio</span><span id="dpr" class="value">—</span></div>
+        <div class="row"><span class="label">HDR поддержка</span><span id="hdr" class="value">—</span></div>
+        <div class="row"><span class="label">WebGPU</span><span id="webgpu" class="value">—</span></div>
+        <div class="row"><span class="label">Сенсорный ввод</span><span id="touch" class="value">—</span></div>
+
+        <div class="section-title">Программная среда</div>
+        <div class="row"><span class="label">ОС / Платформа</span><span id="os" class="value">—</span></div>
+        <div class="row"><span class="label">Браузер</span><span id="browser" class="value">—</span></div>
+        <div class="row"><span class="label">User Agent</span><span id="ua" class="value" style="font-size: 0.7rem;">—</span></div>
+        <div class="row"><span class="label">Язык системы</span><span id="lang" class="value">—</span></div>
+        <div class="row"><span class="label">Часовой пояс</span><span id="tz" class="value">—</span></div>
+        <div class="row"><span class="label">Цветовая схема</span><span id="theme" class="value">—</span></div>
+        <div class="row"><span class="label">Do Not Track</span><span id="dnt" class="value">—</span></div>
+        <div class="row"><span class="label">Cookies</span><span id="cookies" class="value">—</span></div>
+        <div class="row"><span class="label">AdBlock</span><span id="adblock" class="value">—</span></div>
+
+        <div class="section-title">Периферия и Права</div>
+        <div class="row"><span class="label">Количество камер</span><span id="cams" class="value">—</span></div>
+        <div class="row"><span class="label">Количество микрофонов</span><span id="mics" class="value">—</span></div>
+        <div class="row"><span class="label">Разрешение: Гео</span><span id="p-geo" class="value">—</span></div>
+        <div class="row"><span class="label">Разрешение: Камера</span><span id="p-cam" class="value">—</span></div>
+        <div class="row"><span class="label">Разрешение: Микрофон</span><span id="p-mic" class="value">—</span></div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('current-date').innerText = new Date().toLocaleString('ru-RU');
+
+    // 1. IP И СЕТЬ (Fetch API)
+    async function getNetworkData() {
+        try {
+            const res = await fetch('https://ipapi.co/json/');
+            const d = await res.json();
+            document.getElementById('ip').innerText = d.ip;
+            document.getElementById('isp').innerText = d.org;
+            document.getElementById('location').innerText = `${d.city}, ${d.region}, ${d.country_name}`;
+        } catch (e) {
+            document.getElementById('ip').innerText = "Ошибка API (CORS)";
+        }
+    }
+    getNetworkData();
+
+    // 2. ГРАФИКА И CANVAS ID
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl', {antialias: true}) || canvas.getContext('experimental-webgl');
+        
+        // Canvas Fingerprint
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = "rgb(128,0,0)"; ctx.fillRect(10, 10, 100, 100);
+        ctx.fillStyle = "rgba(0,128,0,0.5)"; ctx.font = "18pt Arial";
+        ctx.fillText("Fingerprint_Audit", 20, 40);
+        document.getElementById('canvas-id').innerText = btoa(canvas.toDataURL()).substring(150, 180);
+
+        // Видеокарта
+        if (gl) {
+            const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+            document.getElementById('gpu').innerText = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+        }
+    } catch (e) { document.getElementById('gpu').innerText = "Доступ запрещен"; }
+
+    // 3. ЖЕЛЕЗО
+    document.getElementById('cpu').innerText = navigator.hardwareConcurrency + " ядер";
+    document.getElementById('ram').innerText = navigator.deviceMemory ? `~${navigator.deviceMemory} ГБ` : "Защищено";
+    if (window.performance && performance.memory) {
+        document.getElementById('heap').innerText = Math.round(performance.memory.usedJSHeapSize / (1024 * 1024)) + " МБ";
+    }
+    navigator.storage?.estimate().then(est => {
+        document.getElementById('disk').innerText = Math.round(est.quota / (1024**3)) + " GB";
+    });
+
+    // 4. БАТАРЕЯ
+    if (navigator.getBattery) {
+        navigator.getBattery().then(b => {
+            const up = () => {
+                document.getElementById('battery').innerText = Math.round(b.level * 100) + "%";
+                document.getElementById('charging').innerText = b.charging ? 'Заряжается' : 'Разряжается';
+            };
+            up(); b.onlevelchange = up; b.onchargingchange = up;
+        });
+    }
+
+    // 5. СОФТ И ЭКРАН
+    document.getElementById('os').innerText = navigator.platform;
+    document.getElementById('browser').innerText = navigator.userAgentData?.brands?.map(b => b.brand).join(', ') || "Chromium-based";
+    document.getElementById('ua').innerText = navigator.userAgent;
+    document.getElementById('lang').innerText = navigator.language.toUpperCase();
+    document.getElementById('tz').innerText = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    document.getElementById('theme').innerText = window.matchMedia('(prefers-color-scheme: dark)').matches ? "Темная" : "Светлая";
+    document.getElementById('dnt').innerText = navigator.doNotTrack === "1" ? "Да" : "Нет";
+    document.getElementById('cookies').innerText = navigator.cookieEnabled ? "Включены" : "Выключены";
+    
+    document.getElementById('screen').innerText = `${screen.width} x ${screen.height}`;
+    document.getElementById('avail-screen').innerText = `${screen.availWidth} x ${screen.availHeight}`;
+    document.getElementById('color-depth').innerText = screen.colorDepth + " бит";
+    document.getElementById('dpr').innerText = window.devicePixelRatio.toFixed(2);
+    document.getElementById('hdr').innerText = window.matchMedia("(dynamic-range: high)").matches ? "Да" : "Нет";
+    document.getElementById('webgpu').innerText = ('gpu' in navigator) ? "Да" : "Нет";
+    document.getElementById('touch').innerText = navigator.maxTouchPoints > 0 ? "Да" : "Нет";
+
+    // 6. СЕТЬ И ADBLOCK (Прямой запрос)
+    const conn = navigator.connection || {};
+    document.getElementById('conn-type').innerText = (conn.effectiveType || "—").toUpperCase();
+    document.getElementById('ping').innerText = conn.rtt ? conn.rtt + " мс" : "—";
+
+    async function checkAdBlock() {
+        const url = 'https://googleads.g.doubleclick.net/pagead/ads?';
+        try {
+            await fetch(new Request(url, { method: 'HEAD', mode: 'no-cors' }));
+            document.getElementById('adblock').innerText = "Не активен";
+        } catch (e) {
+            document.getElementById('adblock').innerText = "Активен";
+        }
+    }
+    checkAdBlock();
+
+    // 7. ПЕРИФЕРИЯ И ПРАВА
+    if (navigator.mediaDevices?.enumerateDevices) {
+        navigator.mediaDevices.enumerateDevices().then(devs => {
+            document.getElementById('cams').innerText = devs.filter(d => d.kind === 'videoinput').length;
+            document.getElementById('mics').innerText = devs.filter(d => d.kind === 'audioinput').length;
+        });
+    }
+    const getP = async (n) => { try { return (await navigator.permissions.query({name: n})).state; } catch(e) { return "—"; } };
+    getP('geolocation').then(v => document.getElementById('p-geo').innerText = v);
+    getP('camera').then(v => document.getElementById('p-cam').innerText = v);
+    getP('microphone').then(v => document.getElementById('p-mic').innerText = v);
+</script>
+
+</body>
+</html>
