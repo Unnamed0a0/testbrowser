@@ -178,37 +178,41 @@
             document.getElementById('disk').innerText = Math.round(est.quota / 1073741824) + " GB";
         });
     };
-// 2. СЕТЬ (Использование ipify для чистого IP + Native Intl для локации)
     async function getNetworkData() {
         const ipEl = document.getElementById('ip');
-        const locEl = document.getElementById('location');
         const ispEl = document.getElementById('isp');
+        const locEl = document.getElementById('location');
 
         try {
-            // Получаем только IP адрес через HTTPS (максимальная стабильность)
-            const res = await fetch('https://api.ipify.org?format=json');
-            const data = await res.json();
-            
-            if (data.ip) {
-                ipEl.innerText = data.ip;
+            // Прямой запрос к ipwho.is (без посредников и лишних API)
+            const res = await fetch('https://ipwho.is/?lang=ru');
+            const d = await res.json();
+
+            if (d.success) {
+                // 1. IP-адрес (Внешний)
+                ipEl.innerText = d.ip;
                 ipEl.classList.remove('warn');
+
+                // 2. Провайдер (ISP)
+                ispEl.innerText = d.connection.isp || d.connection.org || "Не определен";
+
+                // 3. Местоположение (Тот город, который видит интернет)
+                // Если ты в Самаре через VPN — покажет Самару.
+                locEl.innerText = `${d.city}, ${d.region} (${d.country})`;
+            } else {
+                // Если API ответил, но с ошибкой (например, лимит запросов)
+                ipEl.innerText = "Ошибка API: " + d.message;
             }
 
-            // Определяем город и страну через системный Intl (без запросов к API)
-            // Это берется из настроек Windows/macOS пользователя
-            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; 
-            const parts = tz.split('/');
-            const city = parts[1] ? parts[1].replace('_', ' ') : parts[0];
+        } catch (e) {
+            console.error("ipwho.is fetch error:", e);
+            // Если сервис заблокирован (например, провайдером или AdBlock)
+            ipEl.innerText = "Сервис заблокирован (CORS/AdBlock)";
+            ipEl.classList.add('warn');
             
-            locEl.innerText = `${city} (${tz})`;
-            
-            // Провайдер (через ipify API его нет бесплатно, пишем статус соединения)
-            const conn = navigator.connection || {};
-            ispEl.innerText = `Сеть: ${conn.effectiveType?.toUpperCase() || 'Ethernet/Wi-Fi'}`;
-
-        } catch (e) { 
-            console.error("Network Error:", e);
-            ipEl.innerText = "Ошибка (AdBlock?)"; 
+            // На всякий случай заполняем локацию хотя бы по системным часам
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            locEl.innerText = "По часам: " + tz;
         }
     }
     // 3. БАТАРЕЯ
